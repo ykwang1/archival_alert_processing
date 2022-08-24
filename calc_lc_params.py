@@ -16,8 +16,6 @@ from os import listdir
 from os.path import isfile, join
 
 
-
-
 def calculate_outburst(dflc=None, ts=None, oids=None):
     if ts is not None:
         dflc = pd.read_csv(f'{LC_DIR}{ts}_public.csv')

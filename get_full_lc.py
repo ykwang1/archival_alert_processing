@@ -17,15 +17,9 @@ import datetime
 from itertools import repeat
 from amplitude_cut import plot_outburst, galactic_latitude, dc_mag, batch_get_lightcurves, SIMBAD_EXCLUDES, is_excluded_simbad_class, read_avro_bytes
 
-ARCHIVAL_DIR = '/epyc/data/ztf/alerts/'
-LC_DIR = '/epyc/users/ykwang/data/ac_lc_full/'
-program='public'
-JSON_PATH = '/epyc/users/ykwang/scripts/candids_test.json'
-oid_csv_path = '/epyc/users/ykwang/scripts/object_data.csv'
+from .config import ARCHIVAL_DIR, LC_SAVE_DIR, program, CANDIDS_JSON_PATH, oid_csv_path, LC_FIELDS, OID_FIELDS, LC_UPDATE_FILE
+
 SAVE_OID_FIELDS = False
-LC_FIELDS = ["jd", "fid", "magpsf", "sigmapsf", "diffmaglim", "isdiffpos", "magnr", "sigmagnr", "field", "rcid"]
-OID_FIELDS = ["ssdistnr", "elong", "objectidps1", "distpsnr1", "sgmag1", "srmag1", "simag1"]
-UPDATE_FILE='lc_full_status.txt'
 
 def make_dataframe(packet, save_oid_fields=False, repeat_obs=False):
     """Extract relevant lightcurve data from packet into pandas DataFrame."""
@@ -81,7 +75,7 @@ def get_dflc(ts, candids, program='public', save=True):
     try:
         if len(processed) > 0:
             data = pd.concat(processed)
-            data.to_csv(f'{LC_DIR}{ts}_{program}.csv', index=False)
+            data.to_csv(f'{LC_SAVE_DIR}{ts}_{program}.csv', index=False)
         return 1, ts_dir
     except Exception as e:
         print(f'error saving {tarball_dir}', e)

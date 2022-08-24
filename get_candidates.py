@@ -12,7 +12,7 @@ import datetime
 from amplitude_cut import plot_outburst, from_database_lasair, galactic_latitude, dc_mag, batch_get_lightcurves, SIMBAD_EXCLUDES, is_excluded_simbad_class
 from os import listdir
 from os.path import isfile, join
-DATA_PATH = '/epyc/users/ykwang/data/ac_archival/'
+from .config import ALERT_SAVE_DIR
 N = 7 #days
 
 def convert_ts_jd(ts=None, jd=None):
@@ -69,13 +69,13 @@ def get_candidates(df, jd, nobs=3):
     return list(oids_jd.intersection(oids_gte_nobs))
 
 if __name__ == "__main__":
-    data_files = [f for f in listdir(DATA_PATH) if isfile(join(DATA_PATH, f))]
+    data_files = [f for f in listdir(ALERT_SAVE_DIR) if isfile(join(ALERT_SAVE_DIR, f))]
     csv_ts = [f.split('_')[0] for f in data_files]
     sorted_data_files = pd.Series(data_files).sort_values().reset_index(drop=True)
     sorted_ts = pd.Series(csv_ts).sort_values().reset_index(drop=True)
     dd = []
     for ts in sorted_ts[:N]:
-        df = pd.read_csv(f'{DATA_PATH}{ts}_public.csv')
+        df = pd.read_csv(f'{ALERT_SAVE_DIR}{ts}_public.csv')
         print(ts, len(df))
         process = make_cuts(df)
         process['last_obs_jd'] = convert_ts_jd(ts=ts)
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         if ii < N:
             continue
         try:
-            df = pd.read_csv(f'{DATA_PATH}{ts}_public.csv')
+            df = pd.read_csv(f'{ALERT_SAVE_DIR}{ts}_public.csv')
         except:
             all_candids[ts] =[]
             continue
