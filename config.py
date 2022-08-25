@@ -4,6 +4,7 @@ LC_SAVE_DIR = '/epyc/users/ykwang/data/ac_pipeline/lc_data/'
 # FPS_TO_READ = '/epyc/users/ykwang/data/ac_pipeline/alert_archive_fps_public_remaining.txt'
 FPS_TO_READ = '/epyc/users/ykwang/data/ac_pipeline/known_xrb_fps.txt'
 program='public'
+ALERT_PROC_N_CORES = 48
 
 SIMBAD_EXCLUDES = ['G?', 'SC?', 'C?G', 'Gr?', 'As?', 'Y*?', 'pr?', 'TT?', 'Mi?', 'SCG', 'ClG',
 'GrG', 'CGG', 'PaG', 'IG', 'Y*O', 'pr*', 'TT*', 'Or*', 'FU*', 'BY*', 'RS*',
