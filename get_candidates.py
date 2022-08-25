@@ -16,6 +16,7 @@ from .config import ALERT_SAVE_DIR
 N = 7 #days
 
 def convert_ts_jd(ts=None, jd=None):
+    """convert a YYYYMMDD timestamp to julian date and vice versa"""
     if jd == None:
         dt = datetime.datetime.strptime(ts, '%Y%m%d')
         return int(pd.Timestamp(dt).to_julian_date() + .5)
