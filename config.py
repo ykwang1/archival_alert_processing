@@ -1,5 +1,5 @@
 ARCHIVAL_DIR = '/epyc/data/ztf/alerts/'
-ALERT_SAVE_DIR = '/epyc/users/ykwang/data/ac_pipeline/alert_data'
+ALERT_SAVE_DIR = '/epyc/users/ykwang/data/ac_pipeline/alert_data/'
 LC_SAVE_DIR = '/epyc/users/ykwang/data/ac_pipeline/lc_data/'
 # FPS_TO_READ = '/epyc/users/ykwang/data/ac_pipeline/alert_archive_fps_public_remaining.txt'
 FPS_TO_READ = '/epyc/users/ykwang/data/ac_pipeline/known_xrb_fps.txt'
