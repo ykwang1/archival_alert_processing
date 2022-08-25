@@ -59,17 +59,30 @@ def is_excluded_simbad_class(ra, dec):
 
 def make_dataframe(packet):
     """Extract relevant lightcurve data from packet into pandas DataFrame."""
+    cols = ["ztf_object_id", "jd", "utc", "magpsf", "sigmapsf", "diffmaglim",
+                      "isdiffpos", "magnr", "sigmagnr", "field", "rcid", "fid"]
     df = pd.DataFrame(packet["candidate"], index=[0])
     fid = packet['candidate']['fid']
     df_prv = pd.DataFrame(packet["prv_candidates"])
     df_merged = pd.concat([df_prv, df], ignore_index=True)
-    df = df.query(f'fid == {fid}')
+    df = df.query(f'fid == {fid}') # drop rows not in filter fid
     df_merged["ztf_object_id"] = packet["objectId"]
     for col in ["magpsf", "sigmapsf", "diffmaglim", "magnr", "sigmagnr"]:
         df_merged[col] = df_merged[col].astype(float)
     df_merged["utc"] = pd.to_datetime(df_merged['jd'], unit='D', origin='julian')
-    return df_merged[["ztf_object_id", "jd", "utc", "magpsf", "sigmapsf", "diffmaglim",
-                      "isdiffpos", "magnr", "sigmagnr"]]
+    df_merged = df_merged.query(f'fid=={fid}')
+    
+    # impute magnr for nondetections
+    grp = df_merged.groupby(['fid','field','rcid'])
+    impute_magnr = grp['magnr'].agg(lambda x: np.median(x[np.isfinite(x)]))
+    impute_sigmagnr = grp['sigmagnr'].agg(lambda x: np.median(x[np.isfinite(x)]))
+
+    for idx, grpi in grp:
+        w = np.isnan(grpi['magnr'])
+        w2 = grpi[w].index
+        df_merged.loc[w2,'magnr'] = impute_magnr[idx]
+        df_merged.loc[w2,'sigmagnr'] = impute_sigmagnr[idx]
+    return df_merged[cols].reset_index(drop=True)
 
 def EWMA_recursive(obs, last_obs, mag, last_ewma, tau=8):
     f = np.exp(-(obs - last_obs) / tau)
@@ -82,10 +95,10 @@ def EWMA_init(packet, combine=True, tau=8, tau_list=None, debug=False):
     '''
     df = make_dataframe(packet)
     # df = df.dropna(subset=['magnr'])
-    df['dc_mag'], df['dc_sigmags'], df['dc_mag_ulim'] = dc_mag(df['isdiffpos'], df['magnr'], 
+    df['dc_mag'], df['dc_sigmags'], df['dc_mag_lim'] = dc_mag(df['isdiffpos'], df['magnr'], 
                                                                 df['magpsf'], df['sigmagnr'], 
                                                                 df['sigmapsf'], df['diffmaglim'])
-    df['combined_mag_ulim'] = [df.loc[ii, 'dc_mag_ulim'] 
+    df['combined_mag'] = [df.loc[ii, 'dc_mag_lim'] 
                                if pd.isna(df.loc[ii, 'dc_mag']) 
                                else df.loc[ii, 'dc_mag'] 
                                for ii in df.index]
@@ -94,15 +107,16 @@ def EWMA_init(packet, combine=True, tau=8, tau_list=None, debug=False):
     
     if tau_list is not None:
         for t in tau_list:
-            df[f'ewma{t}'] = df['combined_mag_ulim'].ewm(halflife=f'{t} days', times=df['utc']).mean().values
+            df[f'ewma{t}'] = df['combined_mag'].ewm(halflife=f'{t} days', times=df['utc']).mean().values
         return [df[f'ewma{t}'].values[-1] for t in tau_list]
     
-    df['ewma'] = df['combined_mag_ulim'].ewm(halflife=f'{tau} days', times=df['utc']).mean().values
+    df['ewma'] = df['combined_mag'].ewm(halflife=f'{tau} days', times=df['utc']).mean().values
     if debug:
         return df
     return df['ewma'].values[-1]
 
 def dc_mag(isdiffpos, magnr, magpsf, sigmagnr, sigmapsf, diffmaglim=None):
+    """Calculate absolute photometric (DC) magnitudes and mean limits"""
     sign = 2 * ((isdiffpos == 't') | (isdiffpos == '1')) - 1
     u = 10**(-0.4*magnr) + sign * 10**(-0.4*magpsf)
     
@@ -115,9 +129,9 @@ def dc_mag(isdiffpos, magnr, magpsf, sigmagnr, sigmapsf, diffmaglim=None):
     (10**(-0.4*magpsf) * sigmapsf)**2.) / u
     
     dc_mag_ulim = -2.5 * np.log10(10**(-0.4*magnr) + 10**(-0.4*diffmaglim))
-#     dc_mag_llim = -2.5 * np.log10(10**(-0.4*magnr) - 10**(-0.4*diffmaglim))
+    dc_mag_llim = -2.5 * np.log10(10**(-0.4*magnr) - 10**(-0.4*diffmaglim))
     
-    return dc_mag, dc_sigmag, dc_mag_ulim
+    return dc_mag, dc_sigmag, (dc_mag_ulim + dc_mag_llim)/2
 
 def process_alert(packet, prev_obs=None):
     """
@@ -133,11 +147,11 @@ def process_alert(packet, prev_obs=None):
     
     features_to_save = ['ztf_object_id', 'ra', 'dec', 'fid',
                         'last_obs_fid1', 'ewma2_fid1', 'ewma8_fid1', 'ewma28_fid1', 
-                        'metric_fid1', 'outburst_fid1', 'outburst_time_fid1', 
+                        'dc_mag_fid1', 'outburst_fid1', 'outburst_time_fid1', 
                         'last_obs_fid2', 'ewma2_fid2', 'ewma8_fid2', 'ewma28_fid2', 
-                        'metric_fid2', 'outburst_fid2', 'outburst_time_fid2', 
+                        'dc_mag_fid2', 'outburst_fid2', 'outburst_time_fid2', 
                         'last_obs_fid3', 'ewma2_fid3', 'ewma8_fid3', 'ewma28_fid3', 
-                        'metric_fid3', 'outburst_fid3', 'outburst_time_fid3', 
+                        'dc_mag_fid3', 'outburst_fid3', 'outburst_time_fid3', 
                         'SIMBAD_otype', 'xray_name', 'interest_flag', 'sgscore', 'min_mag']
     packet_data = pd.Series([np.nan] * len(features_to_save), index = features_to_save)
     
@@ -161,16 +175,16 @@ def process_alert(packet, prev_obs=None):
             
     # Calculate DC magnitude
     if not np.isnan(packet['candidate']['magnr']):
-        mag, sigmag, _ = dc_mag(packet['candidate']['isdiffpos'], packet['candidate']['magnr'], 
+        mag, sigmag, maglim = dc_mag(packet['candidate']['isdiffpos'], packet['candidate']['magnr'], 
                              packet['candidate']['magpsf'], packet['candidate']['sigmagnr'], 
                              packet['candidate']['sigmapsf'], packet['candidate']['diffmaglim'])
+        
     else:
         mag = diffmaglim
     # If previously observed, update ewma value
     if prev_obs is not None:
         obs_last_30d = ((packet['candidate']['jd'] - prev_obs[f'ewma2_fid{fid}']) < 30)
         if not np.isnan(prev_obs[f'last_obs_fid{fid}']) and obs_last_30d:
-
 
             
             packet_data[f'ewma2_fid{fid}'] = EWMA_recursive(packet_data[f'last_obs_fid{fid}'], 
@@ -184,10 +198,11 @@ def process_alert(packet, prev_obs=None):
                                                            mag, prev_obs[f'ewma_fid{fid}'], tau=28)
 
         else:
-            ewmas = EWMA_init(packet, tau_list=[2, 8, 28])
+            ewmas = EWMA_init(packet, fid, tau_list=[2, 8, 28])
             packet_data[f'ewma2_fid{fid}'] = ewmas[0] # EWMA_init(packet, tau=2)
             packet_data[f'ewma8_fid{fid}'] = ewmas[1] # EWMA_init(packet)
             packet_data[f'ewma28_fid{fid}'] = ewmas[2] # EWMA_init(packet, tau=28)
+            
     # If not previously observed, or no obs in last 30 days, recalculate EWMA
     else:
         ewmas = EWMA_init(packet, tau_list=[2, 8, 28])
@@ -195,7 +210,7 @@ def process_alert(packet, prev_obs=None):
         packet_data[f'ewma8_fid{fid}'] = ewmas[1] # EWMA_init(packet)
         packet_data[f'ewma28_fid{fid}'] = ewmas[2] # EWMA_init(packet, tau=28)
         
-    packet_data[f'metric_fid{fid}'] = mag
+    packet_data[f'dc_mag_fid{fid}'] = mag
 #     # update minimum mag if relevant
 #     if (mag > packet_data['min_mag']) or np.isnan(packet_data['min_mag']):
 #         packet_data['min_mag'] = mag
@@ -222,8 +237,6 @@ def read_avro_bytes(buf):
             return packet
 
 def consume_one_night(file_path, program='public', n_alerts=None, save=SAVE):
-#     tarball_name = f'ztf_{program}_{timestamp}.tar.gz'
-#     tarball_dir = ARCHIVAL_DIR + program + '/' + tarball_name
     tarball_dir = file_path.strip()
     try:
         tar = tarfile.open(tarball_dir, 'r:gz')
@@ -253,17 +266,21 @@ def consume_one_night(file_path, program='public', n_alerts=None, save=SAVE):
 #             print(f"{ii} messaged consumed")
         try:
             packet = read_avro_bytes(tar.extractfile(tarpacket).read())
-            processed.append(process_alert(packet, None))
+            
         except:
             # print(packet['objectId'])
-            print(f'error reading an oject in {tarball_dir}')
+            print(f'error reading an object in {tarball_dir}')
             continue
+        try:
+            processed.append(process_alert(packet, None))
+        except:
+            print(f'error processing an object in {tarball_dir}')
+            continue            
     
     try:
         data = pd.DataFrame(processed)
         data = data.sort_values('ztf_object_id').sort_values('last_obs_fid3').sort_values('last_obs_fid2').sort_values('last_obs_fid1')
         # data.to_csv('test_night_20191202.csv', index=False)
-        data = data.drop_duplicates(subset=['ztf_object_id', 'fid'], keep='last')
     except Exception as e:
         print(f'Problem manipulating df {e}') 
     if save:

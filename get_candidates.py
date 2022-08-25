@@ -25,6 +25,7 @@ def convert_ts_jd(ts=None, jd=None):
         return np.nan
     
 def make_cuts(df):
+    df = df.drop_duplicates(subset=['ztf_object_id', 'fid'], keep='last') # ivestigate need for this
     data = df.groupby('ztf_object_id').agg(np.nanmean)
     data['outburst_avg'] = np.nansum(data[['outburst_fid1', 'outburst_fid2', 'outburst_fid3']], axis=1) / 3
     data['outburst_max'] = np.nanmax(data[['outburst_fid1', 'outburst_fid2', 'outburst_fid3']], axis=1)
@@ -71,6 +72,7 @@ def get_candidates(df, jd, nobs=3):
 if __name__ == "__main__":
     data_files = [f for f in listdir(ALERT_SAVE_DIR) if isfile(join(ALERT_SAVE_DIR, f))]
     csv_ts = [f.split('_')[0] for f in data_files]
+    csv_ts = [f.split('_')[1][-8:] for f in data_files]
     sorted_data_files = pd.Series(data_files).sort_values().reset_index(drop=True)
     sorted_ts = pd.Series(csv_ts).sort_values().reset_index(drop=True)
     dd = []
