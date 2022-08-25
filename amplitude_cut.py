@@ -17,7 +17,7 @@ from astroquery.simbad import Simbad
 
 from math import ceil
 
-from .config import ARCHIVAL_DIR, ALERT_SAVE_DIR, SIMBAD_EXCLUDES, program, ARCHIVE_UPDATE_FILE, FPS_TO_READ
+from config import ARCHIVAL_DIR, ALERT_SAVE_DIR, SIMBAD_EXCLUDES, program, ARCHIVE_UPDATE_FILE, FPS_TO_READ, ALERT_PROC_N_CORES
 
 SAVE=True # save as you go
 UPDATE_FILE = 'consumed_files.txt' 
@@ -402,7 +402,7 @@ if __name__ == "__main__":
     niceness = 10
     os.nice(niceness)
     print(f'nice value: {niceness}')
-    consume_archives_parallel(fps, n_cores=3)
+    consume_archives_parallel(fps, n_cores=ALERT_PROC_N_CORES)
 #     import time
 #     s = time.time()
 #     print('starting...')
