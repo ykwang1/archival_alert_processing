@@ -23,3 +23,7 @@ oid_csv_path = '/epyc/users/ykwang/scripts/object_data.csv'
 LC_FIELDS = ["jd", "fid", "magpsf", "sigmapsf", "diffmaglim", "isdiffpos", "magnr", "sigmagnr", "field", "rcid"]
 OID_FIELDS = ["ra", "dec", "ssdistnr", "elong", "objectidps1", "distpsnr1", "sgmag1", "srmag1", "simag1"]
 LC_UPDATE_FILE='lc_full_status.txt'
+
+CATALOG_DIR = '/epyc/users/ykwang/data/xray_catalog.csv'
+XMATCH_SAVE_DIR = '/epyc/users/ykwang/data/ac_pipeline/alert_data/'
+XMATCH_UPDATE_FILE = 'xmatch_consumed_files.txt' 
