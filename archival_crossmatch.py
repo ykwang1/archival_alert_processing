@@ -12,11 +12,13 @@ import fastavro
 from astropy.coordinates import SkyCoord, match_coordinates_sky
 import astropy.units as u
 from astropy.io import fits
-
-
+import os
+import multiprocessing as mp
+from itertools import repeat
 from astroquery.simbad import Simbad
-from config import ARCHIVAL_DIR, MATCHED_OIDS_DIR
+from config import ARCHIVAL_DIR, XMATCH_UPDATE_FILE, ALERT_PROC_N_CORES, XMATCH_SAVE_DIR, FPS_TO_READ, CATALOG_DIR
 
+SAVE=True
 
 SIGMA_TO_95pctCL = 1.95996
 
@@ -36,7 +38,7 @@ def read_avro_bytes(buf):
 
 def get_candidate_info(packet):
     return {"ra": packet["candidate"]["ra"], "dec": packet["candidate"]["dec"],
-            "object_id": packet["objectId"], "magnr": packet["magnr"]}
+            "object_id": packet["objectId"], "magnr": packet["candidate"]["magnr"]}
 
 def load_xray():
     # open combined xray catalog
@@ -122,8 +124,8 @@ def ztf_rosat_crossmatch(ztf_source, xray_skycoord, dfx):
         return None
 
 
-@
-def process_packet(packet, xray_skycoord, dfx):
+
+def process_alert(packet, xray_skycoord, dfx):
     """Examine packet for matches in the ROSAT database. Save object to database if match found"""
     rb_key = "drb" if "drb" in packet["candidate"].keys() else 'rb'
     if packet["candidate"][rb_key] < 0.8:  # if packet real/bogus score is low, ignore
@@ -162,10 +164,16 @@ def consume_one_night(file_path, program='public', n_alerts=None, save=SAVE):
             if save:
                 return (0, file_path)
             return pd.DataFrame([]) 
-        
+    try:
+        dfx, xray_skycoord = load_xray()
+    except:
+        print(f"error reading xray catalog")
+        if save:
+            return (0, file_path)
+        return pd.DataFrame([])    
     for ii, tarpacket in enumerate(tar.getmembers()[:n_alerts]):
-#         if ii%1000 == 0:
-#             print(f"{ii} messaged consumed")
+        if ii%1000 == 0:
+            print(f"{ii} messaged consumed")
         try:
             packet = read_avro_bytes(tar.extractfile(tarpacket).read())
             
@@ -174,14 +182,13 @@ def consume_one_night(file_path, program='public', n_alerts=None, save=SAVE):
             print(f'error reading an object in {tarball_dir}')
             continue
         try:
-            processed.append(process_alert(packet, None))
-        except:
-            print(f'error processing an object in {tarball_dir}')
+            processed.append(process_alert(packet, xray_skycoord, dfx))
+        except Exception as e:
+            print(f'error an object in {tarball_dir}, {e}')
             continue            
     
     try:
         data = pd.DataFrame(processed)
-        data = data.sort_values('ztf_object_id').sort_values('last_obs_fid3').sort_values('last_obs_fid2').sort_values('last_obs_fid1')
         # data.to_csv('test_night_20191202.csv', index=False)
     except Exception as e:
         print(f'Problem manipulating df {e}') 

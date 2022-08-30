@@ -18,6 +18,9 @@ from astroquery.simbad import Simbad
 from math import ceil
 
 from config import ARCHIVAL_DIR, ALERT_SAVE_DIR, SIMBAD_EXCLUDES, program, ARCHIVE_UPDATE_FILE, FPS_TO_READ, ALERT_PROC_N_CORES
+import warnings
+warnings.filterwarnings('ignore')
+warnings.simplefilter('ignore')
 
 SAVE=True # save as you go
 UPDATE_FILE = 'consumed_files.txt' 
@@ -131,7 +134,7 @@ def dc_mag(isdiffpos, magnr, magpsf, sigmagnr, sigmapsf, diffmaglim=None):
     dc_mag_ulim = -2.5 * np.log10(10**(-0.4*magnr) + 10**(-0.4*diffmaglim))
     dc_mag_llim = -2.5 * np.log10(10**(-0.4*magnr) - 10**(-0.4*diffmaglim))
     
-    return dc_mag, dc_sigmag, (dc_mag_ulim + dc_mag_llim)/2
+    return dc_mag, dc_sigmag, np.nanmean([dc_mag_ulim, dc_mag_llim])
 
 def process_alert(packet, prev_obs=None):
     """
@@ -198,7 +201,7 @@ def process_alert(packet, prev_obs=None):
                                                            mag, prev_obs[f'ewma_fid{fid}'], tau=28)
 
         else:
-            ewmas = EWMA_init(packet, fid, tau_list=[2, 8, 28])
+            ewmas = EWMA_init(packet, tau_list=[2, 8, 28])
             packet_data[f'ewma2_fid{fid}'] = ewmas[0] # EWMA_init(packet, tau=2)
             packet_data[f'ewma8_fid{fid}'] = ewmas[1] # EWMA_init(packet)
             packet_data[f'ewma28_fid{fid}'] = ewmas[2] # EWMA_init(packet, tau=28)
@@ -262,8 +265,8 @@ def consume_one_night(file_path, program='public', n_alerts=None, save=SAVE):
             return pd.DataFrame([]) 
         
     for ii, tarpacket in enumerate(tar.getmembers()[:n_alerts]):
-#         if ii%1000 == 0:
-#             print(f"{ii} messaged consumed")
+        if ii%1000 == 0:
+            print(f"{ii} messaged consumed")
         try:
             packet = read_avro_bytes(tar.extractfile(tarpacket).read())
             
@@ -273,8 +276,8 @@ def consume_one_night(file_path, program='public', n_alerts=None, save=SAVE):
             continue
         try:
             processed.append(process_alert(packet, None))
-        except:
-            print(f'error processing an object in {tarball_dir}')
+        except Exception as e:
+            print(f'error processing an object in {tarball_dir}, {e}')
             continue            
     
     try:
