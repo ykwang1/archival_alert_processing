@@ -190,6 +190,7 @@ def consume_one_night(file_path, program='public', n_alerts=None, save=SAVE):
     try:
         data = pd.DataFrame(processed)
         # data.to_csv('test_night_20191202.csv', index=False)
+        return (0, file_path)
     except Exception as e:
         print(f'Problem manipulating df {e}') 
     if save:
