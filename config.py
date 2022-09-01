@@ -1,6 +1,8 @@
 ARCHIVAL_DIR = '/epyc/data/ztf/alerts/'
 ALERT_SAVE_DIR = '/epyc/users/ykwang/data/ac_pipeline/alert_data/'
-LC_SAVE_DIR = '/epyc/users/ykwang/data/ac_pipeline/lc_data/'
+# LC_SAVE_DIR = '/epyc/users/ykwang/data/ac_pipeline/lc_data/'
+LC_SAVE_DIR = '/epyc/users/ykwang/data/ac_pipeline/xmatch_lcs/'
+
 FPS_TO_READ = '/epyc/users/ykwang/data/ac_pipeline/alert_archive_fps_public_remaining.txt'
 # FPS_TO_READ = '/epyc/users/ykwang/data/ac_pipeline/known_xrb_fps.txt'
 program='public'
@@ -19,6 +21,7 @@ ARCHIVE_UPDATE_FILE = 'consumed_files.txt'
 
 
 CANDIDS_JSON_PATH = '/epyc/users/ykwang/scripts/candids_test.json'
+CANDIDS_TXT_PATH = '/epyc/users/ykwang/Github/archival_alert_processing/archival_sources.txt'
 oid_csv_path = '/epyc/users/ykwang/scripts/object_data.csv'
 LC_FIELDS = ["jd", "fid", "magpsf", "sigmapsf", "diffmaglim", "isdiffpos", "magnr", "sigmagnr", "field", "rcid"]
 OID_FIELDS = ["ra", "dec", "ssdistnr", "elong", "objectidps1", "distpsnr1", "sgmag1", "srmag1", "simag1"]

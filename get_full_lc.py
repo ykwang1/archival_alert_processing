@@ -15,9 +15,11 @@ from astroquery.simbad import Simbad
 from math import ceil
 import datetime
 from itertools import repeat
+from os import listdir
+from os.path import isfile, join
 from amplitude_cut import plot_outburst, galactic_latitude, dc_mag, batch_get_lightcurves, SIMBAD_EXCLUDES, is_excluded_simbad_class, read_avro_bytes
 
-from .config import ARCHIVAL_DIR, LC_SAVE_DIR, program, CANDIDS_JSON_PATH, oid_csv_path, LC_FIELDS, OID_FIELDS, LC_UPDATE_FILE
+from .config import ARCHIVAL_DIR, LC_SAVE_DIR, program, CANDIDS_JSON_PATH, CANDIDS_TXT_PATH, oid_csv_path, LC_FIELDS, OID_FIELDS, LC_UPDATE_FILE
 
 SAVE_OID_FIELDS = False
 
@@ -89,17 +91,23 @@ def consume_archives_parallel(json_path, program='public', n_cores=48, save=True
     niceness = 10
     os.nice(niceness)
     p = mp.Pool(n_cores)   
-    with open('/epyc/users/ykwang/scripts/candids_test.json') as f:
-        sample = json.load(f)
+#     with open('/epyc/users/ykwang/scripts/candids_test.json') as f:
+#         sample = json.load(f)
     
-    full_oids = pd.Series([x for ts in sample.keys() for x in sample[ts]]).unique()
-
-    ts = [k for k, v in sample.items()]
+#     full_oids = pd.Series([x for ts in sample.keys() for x in sample[ts]]).unique()
+    with open(CANDIDS_TXT_PATH) as f:  
+        full_oids = np.array([x.strip() for x in f.readlines()])
+        
+    data_files = [f for f in listdir(ARCHIVAL_DIR+'public/') if isfile(join(ARCHIVAL_DIR+'public/', f))]
+    csv_ts = [f.split('public_')[-1].split('.')[0][:8] for f in data_files]
+    alert_ts = list(set(csv_ts).remove(''))
     
-    statuses = p.starmap(get_dflc, zip(ts, repeat(full_oids)))
+    # ts = [k for k, v in sample.items()]
+    
+    statuses = p.starmap(get_dflc, zip(alerts_ts, repeat(full_oids)))
     
     with open(UPDATE_FILE, 'w') as f:
-        assert len(statuses) == len(ts)
+        assert len(statuses) == len(alerts_ts)
         for ii, status in enumerate(statuses):
             f.write(f"{status[0]}, {status[1]}\n")
 
